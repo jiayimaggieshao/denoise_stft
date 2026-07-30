@@ -393,18 +393,21 @@ class CardioSpecNet(nn.Module):
         # magnitude and phase corrections.  This avoids destructive arbitrary
         # complex masks on a small biomedical dataset.
         maximum_magnitude = self.model_config.mask_limit
-        prior_model = prior[:, : self.model_bins].clamp(1e-4, maximum_magnitude - 1e-4)
-        prior_logit = torch.log(prior_model / (maximum_magnitude - prior_model))
-        magnitude_mask = maximum_magnitude * torch.sigmoid(
-            prior_logit + 0.75 * torch.tanh(delta[:, 0])
-        )
-        phase_correction = 0.35 * torch.tanh(delta[:, 1])
-        learned_mask = torch.polar(magnitude_mask, phase_correction)
+        # Mask assembly and ISTFT stay in fp32: autocast can otherwise mix fp16/fp32
+        # inside torch.polar and complex STFT reconstruction.
+        with torch.autocast(device_type=chest.device.type, enabled=False):
+            prior_model = prior[:, : self.model_bins].float().clamp(1e-4, maximum_magnitude - 1e-4)
+            prior_logit = torch.log(prior_model / (maximum_magnitude - prior_model))
+            magnitude_mask = maximum_magnitude * torch.sigmoid(
+                prior_logit + 0.75 * torch.tanh(delta[:, 0].float())
+            )
+            phase_correction = 0.35 * torch.tanh(delta[:, 1].float())
+            learned_mask = torch.polar(magnitude_mask, phase_correction)
 
-        full_mask = torch.ones_like(filtered_mixture)
-        full_mask[:, : self.model_bins] = learned_mask
-        enhanced_stft = filtered_mixture * full_mask
-        waveform = self._istft(enhanced_stft, length=length) * scale
+            full_mask = torch.ones_like(filtered_mixture)
+            full_mask[:, : self.model_bins] = learned_mask.to(filtered_mixture.dtype)
+            enhanced_stft = filtered_mixture * full_mask
+            waveform = self._istft(enhanced_stft, length=length) * scale.float()
 
         if return_details:
             return FrequencyDenoiseOutput(
