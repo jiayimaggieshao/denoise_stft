@@ -5,11 +5,8 @@ __pycache__/
 .venv/
 venv/
 
-# Local data & artifacts (see data/README.md)
+# Local working copy only (see data/README.md)
 data/dataset/
-data/clean/
-data/noise/
-data/test_real/
 checkpoints/
 outputs/
 *.pt
