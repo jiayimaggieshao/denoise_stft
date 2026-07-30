@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Local data & artifacts (see data/README.md)
+data/dataset/
+data/clean/
+data/noise/
+data/test_real/
+checkpoints/
+outputs/
+*.pt
+*.wav
+comparison.png
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
